@@ -1,3 +1,7 @@
+<a href="">
+  <img alt="midfulheader" src="https://github.com/afarhadi99/mindful/blob/main/instant.png">
+</a>
+
 # Mindful
 
 Mindful is a Flutter-based mobile application that provides users with a virtual therapist chatbot. The app utilizes OpenAI and OpenRouter for chat completions, offering a compassionate and insightful conversational experience with Dr. Rachel Kim, a virtual therapist.
