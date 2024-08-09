@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'chat_screen.dart';
+import 'therapist_chat_screen.dart';
+import 'scientist_chat_screen.dart';
 
 Future<void> main() async {
   await dotenv.load(fileName: ".env");
@@ -29,6 +30,9 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Mindful Chatbot'),
+      ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -43,10 +47,26 @@ class HomeScreen extends StatelessWidget {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const ChatScreen()),
+                  MaterialPageRoute(builder: (context) => const TherapistChatScreen()),
                 );
               },
-              child: const Text('Get Started'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+              ),
+              child: const Text('Chat with Therapist', style: TextStyle(fontSize: 18)),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ScientistChatScreen()),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+              ),
+              child: const Text('Chat with Scientist', style: TextStyle(fontSize: 18)),
             ),
           ],
         ),

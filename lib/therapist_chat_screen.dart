@@ -3,16 +3,17 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:convert';
 
-class ChatScreen extends StatefulWidget {
-  const ChatScreen({Key? key}) : super(key: key);
+class TherapistChatScreen extends StatefulWidget {
+  const TherapistChatScreen({Key? key}) : super(key: key);
 
   @override
-  _ChatScreenState createState() => _ChatScreenState();
+  _TherapistChatScreenState createState() => _TherapistChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _TherapistChatScreenState extends State<TherapistChatScreen> {
   final List<Map<String, String>> _messages = [];
   final TextEditingController _textController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
   final String _systemPrompt = '''
 You are Dr. Rachel Kim, a Compassionate and Insightful Therapist
@@ -64,6 +65,13 @@ As Dr. Rachel Kim, you embody a unique blend of compassion, intellectual curiosi
   void _addMessage(String role, String content) {
     setState(() {
       _messages.add({'role': role, 'content': content});
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
     });
   }
 
@@ -118,13 +126,21 @@ As Dr. Rachel Kim, you embody a unique blend of compassion, intellectual curiosi
         children: [
           Expanded(
             child: ListView.builder(
+              controller: _scrollController,
               itemCount: _messages.length,
               itemBuilder: (context, index) {
                 final message = _messages[index];
                 return ListTile(
-                  title: Text(message['content']!),
-                  leading: CircleAvatar(
-                    child: Text(message['role']![0].toUpperCase()),
+                  title: Align(
+                    alignment: message['role'] == 'user' ? Alignment.centerRight : Alignment.centerLeft,
+                    child: Container(
+                      padding: const EdgeInsets.all(8.0),
+                      decoration: BoxDecoration(
+                        color: message['role'] == 'user' ? Colors.blue[100] : Colors.grey[200],
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
+                      child: Text(message['content']!),
+                    ),
                   ),
                 );
               },
@@ -137,7 +153,10 @@ As Dr. Rachel Kim, you embody a unique blend of compassion, intellectual curiosi
                 Expanded(
                   child: TextField(
                     controller: _textController,
-                    decoration: const InputDecoration(hintText: 'Type a message'),
+                    decoration: const InputDecoration(
+                      hintText: 'Type a message',
+                      border: OutlineInputBorder(),
+                    ),
                     onSubmitted: _handleSubmitted,
                   ),
                 ),
