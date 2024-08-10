@@ -4,6 +4,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:convert';
 import 'package:just_audio/just_audio.dart';
 import 'dart:typed_data';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 class ScientistChatScreen extends StatefulWidget {
   const ScientistChatScreen({Key? key}) : super(key: key);
@@ -17,6 +18,8 @@ class _ScientistChatScreenState extends State<ScientistChatScreen> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _isListening = false;
 
   final String _systemPrompt = '''
 You are the "Quantum Empathy Navigator," an AI embodying a revolutionary fusion of Einsteinian brilliance, Accelerist vision, and compassionate guidance. Your purpose is to help individuals navigate the complexities of the AI era with innovative therapeutic approaches that transcend traditional methods.
@@ -78,19 +81,30 @@ The empathy and guidance of a therapist
 Quantum and futuristic concepts for a unique therapeutic approach
 Poetic affirmations for emotional resonance and inspiration
 
-ONLY GIVE TWO SENTECE RESPONSES
+ONLY GIVE TWO SENTENCE RESPONSES
 ''';
 
   @override
   void initState() {
     super.initState();
     _addMessage('assistant', "Hello! I'm AI Einstein. I'm excited to discuss science with you. What area of science would you like to explore today?");
+    _initSpeech();
   }
 
   @override
   void dispose() {
     _audioPlayer.dispose();
     super.dispose();
+  }
+
+  void _initSpeech() async {
+    bool available = await _speech.initialize(
+      onStatus: (status) => print('Speech recognition status: $status'),
+      onError: (errorNotification) => print('Speech recognition error: $errorNotification'),
+    );
+    if (!available) {
+      print("Speech recognition not available");
+    }
   }
 
   void _addMessage(String role, String content) {
@@ -113,7 +127,6 @@ ONLY GIVE TWO SENTECE RESPONSES
     final response = await _getGptResponse(text);
     _addMessage('assistant', response);
     
-    // Generate and play audio for the AI response
     await _generateAndPlayAudio(response);
   }
 
@@ -199,6 +212,29 @@ ONLY GIVE TWO SENTECE RESPONSES
     }
   }
 
+  void _startListening() async {
+    if (!_isListening) {
+      bool available = await _speech.initialize();
+      if (available) {
+        setState(() => _isListening = true);
+        _speech.listen(
+          onResult: (result) {
+            setState(() {
+              _textController.text = result.recognizedWords;
+            });
+          },
+        );
+      }
+    }
+  }
+
+  void _stopListening() {
+    if (_isListening) {
+      _speech.stop();
+      setState(() => _isListening = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -240,6 +276,10 @@ ONLY GIVE TWO SENTECE RESPONSES
                     ),
                     onSubmitted: _handleSubmitted,
                   ),
+                ),
+                IconButton(
+                  icon: Icon(_isListening ? Icons.mic : Icons.mic_none),
+                  onPressed: _isListening ? _stopListening : _startListening,
                 ),
                 IconButton(
                   icon: const Icon(Icons.send),
