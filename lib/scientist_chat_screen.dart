@@ -132,7 +132,7 @@ ONLY GIVE TWO SENTENCE RESPONSES
 
   Future<String> _getGptResponse(String userMessage) async {
     final url = Uri.parse('https://openrouter.ai/api/v1/chat/completions');
-    final apiKey = dotenv.env['OPENAI_API_KEY'];
+    final apiKey = dotenv.env['OPENROUTER_API'];
     
     if (apiKey == null) {
       return 'Error: API key not found in .env file';
