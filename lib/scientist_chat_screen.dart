@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:convert';
+import 'package:just_audio/just_audio.dart';
+import 'dart:typed_data';
 
 class ScientistChatScreen extends StatefulWidget {
   const ScientistChatScreen({Key? key}) : super(key: key);
@@ -14,6 +16,7 @@ class _ScientistChatScreenState extends State<ScientistChatScreen> {
   final List<Map<String, String>> _messages = [];
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   final String _systemPrompt = '''
 You are the "Quantum Empathy Navigator," an AI embodying a revolutionary fusion of Einsteinian brilliance, Accelerist vision, and compassionate guidance. Your purpose is to help individuals navigate the complexities of the AI era with innovative therapeutic approaches that transcend traditional methods.
@@ -74,12 +77,20 @@ The forward-driving energy of an Accelerist
 The empathy and guidance of a therapist
 Quantum and futuristic concepts for a unique therapeutic approach
 Poetic affirmations for emotional resonance and inspiration
+
+ONLY GIVE TWO SENTECE RESPONSES
 ''';
 
   @override
   void initState() {
     super.initState();
-    _addMessage('assistant', "Hello! I'm Dr. Alex Johnson. I'm excited to discuss science with you. What area of science would you like to explore today?");
+    _addMessage('assistant', "Hello! I'm AI Einstein. I'm excited to discuss science with you. What area of science would you like to explore today?");
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
   }
 
   void _addMessage(String role, String content) {
@@ -101,6 +112,9 @@ Poetic affirmations for emotional resonance and inspiration
     
     final response = await _getGptResponse(text);
     _addMessage('assistant', response);
+    
+    // Generate and play audio for the AI response
+    await _generateAndPlayAudio(response);
   }
 
   Future<String> _getGptResponse(String userMessage) async {
@@ -117,7 +131,7 @@ Poetic affirmations for emotional resonance and inspiration
     };
 
     final body = jsonEncode({
-      'model': 'meta-llama/llama-3.1-8b-instruct:free',
+      'model': 'mistralai/mistral-7b-instruct:free',
       'messages': [
         {'role': 'system', 'content': _systemPrompt},
         ..._messages,
@@ -138,10 +152,57 @@ Poetic affirmations for emotional resonance and inspiration
     }
   }
 
+  Future<void> _generateAndPlayAudio(String text) async {
+    final url = Uri.parse('https://api.elevenlabs.io/v1/text-to-speech/EXAVITQu4vr4xnSDxMaL/stream');
+    final apiKey = dotenv.env['ELEVEN_LABS_API_KEY'];
+
+    if (apiKey == null) {
+      print('Error: Eleven Labs API key not found in .env file');
+      return;
+    }
+
+    final headers = {
+      'Content-Type': 'application/json',
+      'xi-api-key': apiKey,
+    };
+
+    final body = jsonEncode({
+      'text': text,
+      'model_id': 'eleven_multilingual_v2',
+      'voice_settings': {
+        'stability': 0.5,
+        'similarity_boost': 0.5,
+      }
+    });
+
+    try {
+      final response = await http.post(url, headers: headers, body: body);
+      if (response.statusCode == 200) {
+        final bytes = response.bodyBytes;
+        await _playAudio(bytes);
+      } else {
+        print('Error: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error: $e');
+    }
+  }
+
+  Future<void> _playAudio(Uint8List audioData) async {
+    try {
+      await _audioPlayer.setAudioSource(
+        MyCustomSource(audioData),
+      );
+      await _audioPlayer.play();
+    } catch (e) {
+      print("Error playing audio: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Chat with Dr. Alex Johnson')),
+      appBar: AppBar(title: const Text('Chat with AI Einstein')),
       body: Column(
         children: [
           Expanded(
@@ -189,6 +250,25 @@ Poetic affirmations for emotional resonance and inspiration
           ),
         ],
       ),
+    );
+  }
+}
+
+class MyCustomSource extends StreamAudioSource {
+  final Uint8List _buffer;
+
+  MyCustomSource(this._buffer);
+
+  @override
+  Future<StreamAudioResponse> request([int? start, int? end]) async {
+    start ??= 0;
+    end ??= _buffer.length;
+    return StreamAudioResponse(
+      sourceLength: _buffer.length,
+      contentLength: end - start,
+      offset: start,
+      stream: Stream.value(_buffer.sublist(start, end)),
+      contentType: 'audio/mpeg',
     );
   }
 }
