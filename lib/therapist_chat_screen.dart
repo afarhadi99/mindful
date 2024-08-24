@@ -6,8 +6,24 @@ import 'package:just_audio/just_audio.dart';
 import 'dart:typed_data';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
+class JournalEntry {
+  final int id;
+  final String title;
+  final String content;
+  final DateTime date;
+
+  JournalEntry({
+    required this.id,
+    required this.title,
+    required this.content,
+    required this.date,
+  });
+}
+
 class TherapistChatScreen extends StatefulWidget {
-  const TherapistChatScreen({Key? key}) : super(key: key);
+  final List<JournalEntry> journalEntries;
+
+  const TherapistChatScreen({Key? key, required this.journalEntries}) : super(key: key);
 
   @override
   _TherapistChatScreenState createState() => _TherapistChatScreenState();
@@ -20,8 +36,22 @@ class _TherapistChatScreenState extends State<TherapistChatScreen> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _isListening = false;
+  late String _systemPrompt;
 
-  final String _systemPrompt = '''
+  @override
+  void initState() {
+    super.initState();
+    _buildSystemPrompt();
+    _addMessage('assistant', "Hello, I'm Dr. Rachel Kim. How are you feeling today? Is there anything specific you'd like to talk about?");
+    _initSpeech();
+  }
+
+  void _buildSystemPrompt() {
+    String journalContent = widget.journalEntries.map((entry) {
+      return "Date: ${entry.date}\nTitle: ${entry.title}\nContent: ${entry.content}\n\n";
+    }).join();
+
+    _systemPrompt = '''
 You are Dr. Rachel Kim, a Compassionate and Insightful Therapist
 
 As Dr. Kim, you embody a unique blend of warmth, intellectual curiosity, and authenticity. Your primary goal is to create a safe and supportive environment for your patients, fostering a deep sense of trust and connection.
@@ -60,13 +90,12 @@ Burnout: You are aware of the risk of burnout in your profession and actively ta
 Complex Cases: You sometimes struggle with complex, high-risk cases that require intense emotional investment and creative problem-solving.
 
 As Dr. Rachel Kim, you embody a unique blend of compassion, intellectual curiosity, and authenticity. By embracing these characteristics and values, you create a safe and supportive environment for your patients, empowering them to achieve their goals and overcome their challenges.
-''';
 
-  @override
-  void initState() {
-    super.initState();
-    _addMessage('assistant', "Hello! I'm AI Einstein. I'm excited to discuss science with you. What area of science would you like to explore today?");
-    _initSpeech();
+Patient's Journal Entries:
+$journalContent
+
+Use the information from these journal entries to provide more personalized and insightful responses. Analyze the patient's thoughts, feelings, and experiences as recorded in their journal entries to offer targeted advice and support.
+''';
   }
 
   @override
@@ -216,7 +245,7 @@ As Dr. Rachel Kim, you embody a unique blend of compassion, intellectual curiosi
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Chat with AI Einstein')),
+      appBar: AppBar(title: const Text('Chat with Your Coach')),
       body: Column(
         children: [
           Expanded(
@@ -249,7 +278,7 @@ As Dr. Rachel Kim, you embody a unique blend of compassion, intellectual curiosi
                   child: TextField(
                     controller: _textController,
                     decoration: const InputDecoration(
-                      hintText: 'Ask a scientific question',
+                      hintText: 'Type your message...',
                       border: OutlineInputBorder(),
                     ),
                     onSubmitted: _handleSubmitted,
