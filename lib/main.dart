@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'therapist_chat_screen.dart';
-import 'scientist_chat_screen.dart';
+import 'journal_screen.dart';
 
 Future<void> main() async {
   await dotenv.load(fileName: ".env");
@@ -60,13 +60,13 @@ class HomeScreen extends StatelessWidget {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const ScientistChatScreen()),
+                  MaterialPageRoute(builder: (context) => const JournalScreen()),
                 );
               },
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
               ),
-              child: const Text('Chat with Scientist', style: TextStyle(fontSize: 18)),
+              child: const Text('Personal Journal', style: TextStyle(fontSize: 18)),
             ),
           ],
         ),

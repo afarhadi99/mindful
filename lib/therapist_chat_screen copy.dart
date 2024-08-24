@@ -6,14 +6,14 @@ import 'package:just_audio/just_audio.dart';
 import 'dart:typed_data';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
-class TherapistChatScreen extends StatefulWidget {
-  const TherapistChatScreen({Key? key}) : super(key: key);
+class TherapistChatScreenCopy extends StatefulWidget {
+  const TherapistChatScreenCopy({Key? key}) : super(key: key);
 
   @override
-  _TherapistChatScreenState createState() => _TherapistChatScreenState();
+  _TherapistChatScreenCopyState createState() => _TherapistChatScreenCopyState();
 }
 
-class _TherapistChatScreenState extends State<TherapistChatScreen> {
+class _TherapistChatScreenCopyState extends State<TherapistChatScreenCopy> {
   final List<Map<String, String>> _messages = [];
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -65,7 +65,7 @@ As Dr. Rachel Kim, you embody a unique blend of compassion, intellectual curiosi
   @override
   void initState() {
     super.initState();
-    _addMessage('assistant', "Hello! I'm AI Einstein. I'm excited to discuss science with you. What area of science would you like to explore today?");
+    _addMessage('assistant', "Hello, I'm Dr. Rachel Kim. How are you feeling today? Is there anything specific you'd like to talk about?");
     _initSpeech();
   }
 
@@ -105,12 +105,13 @@ As Dr. Rachel Kim, you embody a unique blend of compassion, intellectual curiosi
     final response = await _getGptResponse(text);
     _addMessage('assistant', response);
     
+    // Generate and play audio for the AI response
     await _generateAndPlayAudio(response);
   }
 
   Future<String> _getGptResponse(String userMessage) async {
-    final url = Uri.parse('https://openrouter.ai/api/v1/chat/completions');
-    final apiKey = dotenv.env['OPENROUTER_API'];
+    final url = Uri.parse('https://api.openai.com/v1/chat/completions');
+    final apiKey = dotenv.env['OPENAI_API_KEY'];
     
     if (apiKey == null) {
       return 'Error: API key not found in .env file';
@@ -122,7 +123,7 @@ As Dr. Rachel Kim, you embody a unique blend of compassion, intellectual curiosi
     };
 
     final body = jsonEncode({
-      'model': 'mistralai/mistral-7b-instruct:free',
+      'model': 'gpt-4',
       'messages': [
         {'role': 'system', 'content': _systemPrompt},
         ..._messages,
@@ -133,10 +134,10 @@ As Dr. Rachel Kim, you embody a unique blend of compassion, intellectual curiosi
     try {
       final response = await http.post(url, headers: headers, body: body);
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
         return data['choices'][0]['message']['content'];
       } else {
-        return 'Error: ${response.statusCode}';
+        return 'Error: ${response.statusCode}\n${response.body}';
       }
     } catch (e) {
       return 'Error: $e';
@@ -144,45 +145,42 @@ As Dr. Rachel Kim, you embody a unique blend of compassion, intellectual curiosi
   }
 
   Future<void> _generateAndPlayAudio(String text) async {
-    final url = Uri.parse('https://api.elevenlabs.io/v1/text-to-speech/EXAVITQu4vr4xnSDxMaL/stream');
-    final apiKey = dotenv.env['ELEVEN_LABS_API_KEY'];
+    final url = Uri.parse('https://api.openai.com/v1/audio/speech');
+    final apiKey = dotenv.env['OPENAI_API_KEY'];
 
     if (apiKey == null) {
-      print('Error: Eleven Labs API key not found in .env file');
+      print('Error: OpenAI API key not found in .env file');
       return;
     }
 
     final headers = {
       'Content-Type': 'application/json',
-      'xi-api-key': apiKey,
+      'Authorization': 'Bearer $apiKey',
     };
 
     final body = jsonEncode({
-      'text': text,
-      'model_id': 'eleven_multilingual_v2',
-      'voice_settings': {
-        'stability': 0.5,
-        'similarity_boost': 0.5,
-      }
+      'model': 'tts-1-hd',
+      'input': text,
+      'voice': 'onyx',
     });
 
     try {
       final response = await http.post(url, headers: headers, body: body);
       if (response.statusCode == 200) {
         final bytes = response.bodyBytes;
-        await _playAudio(bytes);
+        await _playAudioStream(bytes);
       } else {
-        print('Error: ${response.statusCode}');
+        print('Error: ${response.statusCode}\n${response.body}');
       }
     } catch (e) {
       print('Error: $e');
     }
   }
 
-  Future<void> _playAudio(Uint8List audioData) async {
+  Future<void> _playAudioStream(Uint8List audioData) async {
     try {
       await _audioPlayer.setAudioSource(
-        MyCustomSource(audioData),
+        MyCustomAudioSource(audioData),
       );
       await _audioPlayer.play();
     } catch (e) {
@@ -216,7 +214,7 @@ As Dr. Rachel Kim, you embody a unique blend of compassion, intellectual curiosi
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Chat with AI Einstein')),
+      appBar: AppBar(title: const Text('Chat with Dr. Rachel Kim')),
       body: Column(
         children: [
           Expanded(
@@ -231,10 +229,13 @@ As Dr. Rachel Kim, you embody a unique blend of compassion, intellectual curiosi
                     child: Container(
                       padding: const EdgeInsets.all(8.0),
                       decoration: BoxDecoration(
-                        color: message['role'] == 'user' ? Colors.green[100] : Colors.grey[200],
+                        color: message['role'] == 'user' ? Colors.blue[100] : Colors.grey[200],
                         borderRadius: BorderRadius.circular(8.0),
                       ),
-                      child: Text(message['content']!),
+                      child: Text(
+                        message['content']!,
+                        style: TextStyle(fontSize: 16),
+                      ),
                     ),
                   ),
                 );
@@ -249,7 +250,7 @@ As Dr. Rachel Kim, you embody a unique blend of compassion, intellectual curiosi
                   child: TextField(
                     controller: _textController,
                     decoration: const InputDecoration(
-                      hintText: 'Ask a scientific question',
+                      hintText: 'Type a message',
                       border: OutlineInputBorder(),
                     ),
                     onSubmitted: _handleSubmitted,
@@ -272,20 +273,20 @@ As Dr. Rachel Kim, you embody a unique blend of compassion, intellectual curiosi
   }
 }
 
-class MyCustomSource extends StreamAudioSource {
-  final Uint8List _buffer;
+class MyCustomAudioSource extends StreamAudioSource {
+  final Uint8List _audioData;
 
-  MyCustomSource(this._buffer);
+  MyCustomAudioSource(this._audioData);
 
   @override
   Future<StreamAudioResponse> request([int? start, int? end]) async {
     start ??= 0;
-    end ??= _buffer.length;
+    end ??= _audioData.length;
     return StreamAudioResponse(
-      sourceLength: _buffer.length,
+      sourceLength: _audioData.length,
       contentLength: end - start,
       offset: start,
-      stream: Stream.value(_buffer.sublist(start, end)),
+      stream: Stream.value(_audioData.sublist(start, end)),
       contentType: 'audio/mpeg',
     );
   }
