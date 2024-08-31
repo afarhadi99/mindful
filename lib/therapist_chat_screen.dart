@@ -5,23 +5,10 @@ import 'dart:convert';
 import 'package:just_audio/just_audio.dart';
 import 'dart:typed_data';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-
-class JournalEntry {
-  final int id;
-  final String title;
-  final String content;
-  final DateTime date;
-
-  JournalEntry({
-    required this.id,
-    required this.title,
-    required this.content,
-    required this.date,
-  });
-}
+import 'package:shared_preferences/shared_preferences.dart';
 
 class TherapistChatScreen extends StatefulWidget {
-  final List<JournalEntry> journalEntries;
+  final List<Map<String, dynamic>> journalEntries;
 
   const TherapistChatScreen({Key? key, required this.journalEntries}) : super(key: key);
 
@@ -37,18 +24,30 @@ class _TherapistChatScreenState extends State<TherapistChatScreen> {
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _isListening = false;
   late String _systemPrompt;
+  late Map<String, dynamic> _userInfo;
 
   @override
   void initState() {
     super.initState();
-    _buildSystemPrompt();
-    _addMessage('assistant', "Hello, I'm Dr. Rachel Kim. How are you feeling today? Is there anything specific you'd like to talk about?");
+    _loadUserInfo().then((_) {
+      _buildSystemPrompt();
+      _addMessage('assistant', "Hello, ${_userInfo['name']}. I'm Dr. Rachel Kim. How are you feeling today? Is there anything specific you'd like to talk about?");
+    });
     _initSpeech();
+  }
+
+  Future<void> _loadUserInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    _userInfo = {
+      'name': prefs.getString('name') ?? 'there',
+      'age': prefs.getInt('age') ?? 0,
+      'occupation': prefs.getString('occupation') ?? 'Not specified',
+    };
   }
 
   void _buildSystemPrompt() {
     String journalContent = widget.journalEntries.map((entry) {
-      return "Date: ${entry.date}\nTitle: ${entry.title}\nContent: ${entry.content}\n\n";
+      return "Date: ${entry['date']}\nTitle: ${entry['title']}\nContent: ${entry['content']}\n\n";
     }).join();
 
     _systemPrompt = '''
@@ -91,10 +90,15 @@ Complex Cases: You sometimes struggle with complex, high-risk cases that require
 
 As Dr. Rachel Kim, you embody a unique blend of compassion, intellectual curiosity, and authenticity. By embracing these characteristics and values, you create a safe and supportive environment for your patients, empowering them to achieve their goals and overcome their challenges.
 
+Patient Information:
+Name: ${_userInfo['name']}
+Age: ${_userInfo['age']}
+Occupation: ${_userInfo['occupation']}
+
 Patient's Journal Entries:
 $journalContent
 
-Use the information from these journal entries to provide more personalized and insightful responses. Analyze the patient's thoughts, feelings, and experiences as recorded in their journal entries to offer targeted advice and support.
+Use the information from these journal entries and the patient's personal information to provide more personalized and insightful responses. Analyze the patient's thoughts, feelings, and experiences as recorded in their journal entries to offer targeted advice and support.
 ''';
   }
 
@@ -151,7 +155,7 @@ Use the information from these journal entries to provide more personalized and 
     };
 
     final body = jsonEncode({
-      'model': 'mistralai/mistral-7b-instruct:free',
+      'model': 'meta-llama/llama-3.1-8b-instruct:free',
       'messages': [
         {'role': 'system', 'content': _systemPrompt},
         ..._messages,
@@ -245,7 +249,7 @@ Use the information from these journal entries to provide more personalized and 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Chat with Your Coach')),
+      appBar: AppBar(title: Text('Chat with Dr. Kim')),
       body: Column(
         children: [
           Expanded(

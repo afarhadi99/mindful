@@ -38,6 +38,11 @@ dependencies:
   record: ^5.1.2
   path_provider: ^2.0.15
   deepgram_speech_to_text: ^2.3.2
+  animated_text_kit: ^4.2.2
+  animated_widgets: ^1.1.0
+
+
+
 
 
   # The following adds the Cupertino Icons font to your application.
