@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
 
 class WeeklyScheduleScreen extends StatefulWidget {
   const WeeklyScheduleScreen({Key? key}) : super(key: key);
@@ -85,20 +86,22 @@ class _WeeklyScheduleScreenState extends State<WeeklyScheduleScreen> {
     Based on the following user information, create a well-balanced weekly schedule:
     ${_questions.asMap().entries.map((entry) => "${entry.key + 1}. ${entry.value}\nAnswer: ${userResponses[entry.key]}").join('\n\n')}
 
-    Please provide a schedule for each day of the week (Monday to Sunday) with hourly slots from 6 AM to 10 PM. 
-    Include activities such as work, meditation, medication times, sleep, and other activities mentioned by the user. 
-    Ensure the schedule is well-balanced and provides structure to the user's day.
+    Please provide a schedule for each day of the week (Monday to Sunday). 
+    Focus on important activities such as meditation, workouts, medication times, and unique entries.
+    Do not include mundane activities like sleep, free time, or routine daily tasks.
     
-    Format the response as a JSON array of arrays, where each inner array represents a day of the week, 
-    and each element in the inner array represents an hour slot with the scheduled activity. 
-    Use 'Free time' for unscheduled slots.
+    Format the response as a list of days, where each day starts with the day name followed by important activities.
 
     Example format:
-    [
-      ["Monday", "6 AM: Wake up", "7 AM: Breakfast", "8 AM: Work", ...],
-      ["Tuesday", "6 AM: Wake up", "7 AM: Meditation", "8 AM: Work", ...],
-      ...
-    ]
+    Monday
+    1 PM: Meditate
+    5 PM: Take medication
+
+    Tuesday
+    8 AM: Workout
+    5 PM: Take medication
+
+    (Continue for all days of the week)
     ''';
 
     final body = jsonEncode({
@@ -114,11 +117,33 @@ class _WeeklyScheduleScreenState extends State<WeeklyScheduleScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final content = data['choices'][0]['message']['content'];
-        final scheduleData = jsonDecode(content);
+        
+        // Parse the text response into our required format
+        final List<List<String>> parsedSchedule = [];
+        List<String> currentDay = [];
+        
+        for (String line in content.split('\n')) {
+          if (line.trim().isEmpty) continue;
+          if (line.contains(':')) {
+            currentDay.add(line.trim());
+          } else {
+            if (currentDay.isNotEmpty) {
+              parsedSchedule.add(currentDay);
+            }
+            currentDay = [line.trim()];
+          }
+        }
+        if (currentDay.isNotEmpty) {
+          parsedSchedule.add(currentDay);
+        }
+
+        // Ensure we have 7 days in the schedule
+        while (parsedSchedule.length < 7) {
+          parsedSchedule.add(['Empty Day']);
+        }
+
         setState(() {
-          _schedule = List<List<String>>.from(
-            scheduleData.map((day) => List<String>.from(day)),
-          );
+          _schedule = parsedSchedule;
           _isLoading = false;
         });
         await _saveSchedule();
@@ -151,7 +176,7 @@ class _WeeklyScheduleScreenState extends State<WeeklyScheduleScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _schedule.isEmpty
               ? _buildQuestionnaireForm()
-              : _buildScheduleTable(),
+              : _buildScheduleList(),
     );
   }
 
@@ -180,38 +205,32 @@ class _WeeklyScheduleScreenState extends State<WeeklyScheduleScreen> {
     );
   }
 
-  Widget _buildScheduleTable() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.vertical,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columns: const [
-            DataColumn(label: Text('Time')),
-            DataColumn(label: Text('Mon')),
-            DataColumn(label: Text('Tue')),
-            DataColumn(label: Text('Wed')),
-            DataColumn(label: Text('Thu')),
-            DataColumn(label: Text('Fri')),
-            DataColumn(label: Text('Sat')),
-            DataColumn(label: Text('Sun')),
-          ],
-          rows: List.generate(17, (index) {
-            final time = '${index + 6}:00';
-            return DataRow(
-              cells: [
-                DataCell(Text(time)),
-                ..._schedule.map((day) {
-                  final activity = day[index + 1].split(': ').last;
-                  return DataCell(Text(activity));
-                }),
-              ],
+  Widget _buildScheduleList() {
+    final List<String> daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    final currentDayIndex = DateTime.now().weekday - 1; // 0 for Monday, 6 for Sunday
+
+    return ListView.builder(
+      itemCount: 7,
+      itemBuilder: (context, index) {
+        final adjustedIndex = (index + currentDayIndex) % 7;
+        final day = _schedule[adjustedIndex];
+        final dayName = daysOfWeek[adjustedIndex];
+
+        return ExpansionTile(
+          title: Text(dayName, style: TextStyle(fontWeight: index == 0 ? FontWeight.bold : FontWeight.normal)),
+          initiallyExpanded: index == 0,
+          children: day.skip(1).map((activity) {
+            final parts = activity.split(':');
+            if (parts.length < 2) return const SizedBox.shrink();
+            final time = parts[0].trim();
+            final description = parts.sublist(1).join(':').trim();
+            return ListTile(
+              title: Text(description),
+              subtitle: Text(time),
             );
-          }),
-        ),
-      ),
+          }).toList(),
+        );
+      },
     );
   }
 }
-
-
